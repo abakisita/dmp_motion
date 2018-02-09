@@ -1,3 +1,5 @@
 # dmp_motion
+
 Implementing dynamic movement primitives
-refrence : Pastor, Peter, et al. "Learning and generalization of motor skills by learning from demonstration." Robotics and Automation, 2009. ICRA'09. IEEE International Conference on. IEEE, 2009.
+
+Reference : Pastor, Peter, et al. "Learning and generalization of motor skills by learning from demonstration." Robotics and Automation, 2009. ICRA'09. IEEE International Conference on. IEEE, 2009.
