@@ -47,7 +47,7 @@ class dmp_moton_learning:
 
             f[it, :] *= diff[it]
 
-        print(f)
+        return f
 
     def canonical_system_output(self):
 
@@ -72,11 +72,17 @@ class dmp_moton_learning:
         psi_mat = []
         for c in centers:
             p = self.psi(self.basis_width, s, c)
-            psi_mat.append(p)
+            psi_mat.append(p / np.sum(p))
 
         psi_mat = np.array(psi_mat)
-        print(psi_mat.shape)
-
+        psi_mat = psi_mat.T
+        f = self.calculate_f()
+        f = f.T
+        weights = []
+        for i in range(0, self.pos.shape[0]):
+            w = np.linalg.pinv(psi_mat).dot(f[:,i][np.newaxis].T)
+            weights.append(w[:,0])
+        print(np.array(weights))
 
 if __name__ == "__main__" :
 
