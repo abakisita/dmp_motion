@@ -1,9 +1,23 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 class dmp_moton_learning:
 
     def __init__(self, acc, vel, pos, K, D, time_step, canonical_constant, number_of_basis, basis_width):
+
+        '''
+
+        :param acc: n x m array containing acceleration (n is dimensions and m is number of data points)
+        :param vel: n x m array containing velocity (n is dimensions and m is number of data points)
+        :param pos: n x m array containing position (n is dimensions and m is number of data points)
+        :param K: K gain (position)
+        :param D: D gain (velocity)
+        :param time_step: sampling time
+        :param canonical_constant:
+        :param number_of_basis: number of basis function
+        :param basis_width: width of basis function
+        '''
 
         self.x0 = pos[:,0]
         self.goal = pos[:,pos.shape[1] - 1]
@@ -66,3 +80,36 @@ class dmp_moton_learning:
         print(psi_mat)
 
 
+if __name__ == "__main__" :
+
+    time = np.linspace(0, np.pi, 100)
+    velx = np.sin(time)
+    accx = np.cos(time)
+    vely = time
+    accy = np.ones(100) * (vely[1] - vely[0]) / 0.01
+    posx = []
+    posy = []
+    x = 0.0
+    y = 0.0
+    for i in range(0, velx.shape[0]):
+        x += velx[i] * 0.01
+        y += vely[i] * 0.01
+        posx.append(x)
+        posy.append(y)
+    print(len(posy))
+    print(len(vely))
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot(posx,posy,1)
+    #plt.show()
+
+    posx = np.array(posx)
+    pos = np.vstack((posx, np.array(posy)))
+    velx = np.array(velx)
+    vel = np.vstack((velx, np.array(vely)))
+    accx = np.array(accx)
+    acc = np.vstack((accx, np.array(accy)))
+
+
+
+    print(pos.shape)
