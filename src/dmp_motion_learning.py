@@ -32,15 +32,12 @@ class dmp_moton_learning:
         self.vel = vel
         self.pos = pos
 
-        print(self.acc.shape)
-        print(self.pos)
-        print(self.time_step)
 
     def calculate_f(self):
 
-        goal_matrix = np.ones((1,self.pos.shape[1])) * self.goal[0,0]
+        goal_matrix = np.ones((1,self.pos.shape[1])) * self.goal[0]
         for r in range(0, self.pos.shape[0] - 1):
-            goal_matrix = np.hstack((goal_matrix,np.ones((1,self.pos.shape[1])) * self.goal[r + 1,0]))
+            goal_matrix = np.vstack((goal_matrix,np.ones((1,self.pos.shape[1])) * self.goal[r + 1]))
 
         f = self.acc - self.K * (goal_matrix - self.pos) + self.D * self.vel
 
@@ -50,17 +47,17 @@ class dmp_moton_learning:
 
             f[it, :] *= diff[it]
 
-        print(goal_matrix)
+        print(f)
 
     def canonical_system_output(self):
 
-        time = np.array(self.time_step * range(0, self.pos.shape[1]))
+        time = np.array(self.time_step * np.linspace(0, self.pos.shape[1], self.pos.shape[1]))
         return np.exp(-time * self.canonical_constant)
 
     def calculate_centers(self):
 
         time = np.linspace(0, self.number_of_basis, self.number_of_basis) * \
-               (self.pos[1] * self.time_step * self.canonical_constant / self.number_of_basis)
+               (self.pos.shape[1] * self.time_step * self.canonical_constant / self.number_of_basis)
         return np.exp(-time)
 
     def psi(self, h, s, c):
@@ -77,7 +74,8 @@ class dmp_moton_learning:
             p = self.psi(self.basis_width, s, c)
             psi_mat.append(p)
 
-        print(psi_mat)
+        psi_mat = np.array(psi_mat)
+        print(psi_mat.shape)
 
 
 if __name__ == "__main__" :
@@ -96,8 +94,7 @@ if __name__ == "__main__" :
         y += vely[i] * 0.01
         posx.append(x)
         posy.append(y)
-    print(len(posy))
-    print(len(vely))
+
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.plot(posx,posy,1)
@@ -110,6 +107,8 @@ if __name__ == "__main__" :
     accx = np.array(accx)
     acc = np.vstack((accx, np.array(accy)))
 
-
+    dmp_learn = dmp_moton_learning(acc, vel, pos, 2, 4, 0.01, 1, 10, 1)
+    dmp_learn.learn_weights()
+    dmp_learn.calculate_f()
 
     print(pos.shape)
