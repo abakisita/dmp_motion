@@ -113,12 +113,12 @@ if __name__ == "__main__" :
 
     dmp_learn = dmp_moton_learning(acc, vel, pos, 1, 2, 0.01, 1, 100, 1)
     weights, centers, f = dmp_learn.learn_weights()
-    goal = np.array([[3],
+    goal = np.array([[2],
                      [4]])
     x0 = np.array([[1],
                    [1]])
 
-    dmp_gen = dmp_motion_generation.dmp_motion_generation(goal, x0, 1, 2, 0.01, centers, weights, 1, 100, 1, f)
+    dmp_gen = dmp_motion_generation.dmp_motion_generation(goal, x0, 1, 2, 0.01, weights, 1, 100, 1, f, 50)
     dmp_gen.plot_dmp()
 
     print(pos.shape)

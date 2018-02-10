@@ -4,26 +4,32 @@ from mpl_toolkits.mplot3d import Axes3D
 
 class dmp_motion_generation :
 
-    def __init__(self, goal, x0, K, D, time_step, centers, weights, canonical_constant, number_of_basis, basis_width, f):
+    def __init__(self, goal, x0, K, D, time_step, weights, canonical_constant, number_of_basis, basis_width, f, runtime):
 
         self.goal = goal[np.newaxis].T
         self.x0 = x0[np.newaxis].T
         self.K = K
         self.D = D
         self.time_step = time_step
-        self.centers = centers
         self.weights = weights
         self.number_of_basis = number_of_basis
         self.basis_width = basis_width
         self.canonical_constant = canonical_constant
         self.f = f
         self.__f = []
+        self.runtime = runtime
 
         self.acc = np.zeros(goal.shape)
         self.vel = np.zeros(goal.shape)
         self.pos = x0
         self.time_instances_passed = 0
+        self.calculate_centers()
 
+    def calculate_centers(self):
+
+        time = np.linspace(0, self.runtime * self.time_step * self.canonical_constant, self.number_of_basis)
+
+        self.centers = np.exp(-time)
 
     def canonical_system_output(self):
 
@@ -58,7 +64,7 @@ class dmp_motion_generation :
 
     def integrate(self):
         pos_seq = self.pos
-        for i in range(0, 500):
+        for i in range(0, self.runtime):
             self.integrate_one_step()
             pos_seq = np.hstack((pos_seq, self.pos[0]))
         return pos_seq
