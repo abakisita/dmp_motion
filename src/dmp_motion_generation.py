@@ -23,9 +23,7 @@ class dmp_motion_generation :
         self.vel = np.zeros(goal.shape)
         self.pos = x0
         self.time_instances_passed = 0
-        print(self.acc.shape)
-        print(self.pos)
-        print(self.time_step)
+
 
     def canonical_system_output(self):
 
@@ -60,7 +58,7 @@ class dmp_motion_generation :
 
     def integrate(self):
         pos_seq = self.pos
-        for i in range(0, 200):
+        for i in range(0, 500):
             self.integrate_one_step()
             pos_seq = np.hstack((pos_seq, self.pos[0]))
         return pos_seq

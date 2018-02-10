@@ -89,7 +89,6 @@ if __name__ == "__main__" :
     accx = np.cos(time)
     vely = np.sin(time)
     accy = np.cos(time)
-    print(accy)
     posx = []
     posy = []
     x = 0.0
@@ -114,11 +113,10 @@ if __name__ == "__main__" :
 
     dmp_learn = dmp_moton_learning(acc, vel, pos, 1, 2, 0.01, 1, 100, 1)
     weights, centers, f = dmp_learn.learn_weights()
-    print(f.shape)
-    goal = np.array([[1],
-                     [2]])
-    x0 = np.array([[0],
-                   [0]])
+    goal = np.array([[3],
+                     [4]])
+    x0 = np.array([[1],
+                   [1]])
 
     dmp_gen = dmp_motion_generation.dmp_motion_generation(goal, x0, 1, 2, 0.01, centers, weights, 1, 100, 1, f)
     dmp_gen.plot_dmp()
