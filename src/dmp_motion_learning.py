@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import dmp_motion_generation
 
 class dmp_moton_learning:
 
@@ -40,13 +41,10 @@ class dmp_moton_learning:
             goal_matrix = np.vstack((goal_matrix,np.ones((1,self.pos.shape[1])) * self.goal[r + 1]))
 
         f = self.acc - self.K * (goal_matrix - self.pos) + self.D * self.vel
-
         diff = self.goal - self.x0
-
         for it in range(0, diff.shape[0]):
-
-            f[it, :] *= diff[it]
-
+            f[it, :] = f[it, :] / diff[it]
+        self.f = f
         return f
 
     def canonical_system_output(self):
@@ -58,39 +56,40 @@ class dmp_moton_learning:
 
         time = np.linspace(0, self.number_of_basis, self.number_of_basis) * \
                (self.pos.shape[1] * self.time_step * self.canonical_constant / self.number_of_basis)
-        return np.exp(-time)
+        self.centers = np.exp(-time)
+        return self.centers
 
     def psi(self, h, s, c):
 
-        diff = s - np.ones(s.shape[0]) * c
         return np.exp(-h * (s - c) ** 2)
 
     def learn_weights(self):
 
         centers = self.calculate_centers()
-        s = self.canonical_system_output()
+        _s = self.canonical_system_output()
         psi_mat = []
-        for c in centers:
-            p = self.psi(self.basis_width, s, c)
-            psi_mat.append(p / np.sum(p))
+        for s in _s:
+            p = self.psi(self.basis_width, s, centers)
+            psi_mat.append(p * s / np.sum(p))
 
         psi_mat = np.array(psi_mat)
-        psi_mat = psi_mat.T
+        psi_mat = psi_mat
         f = self.calculate_f()
         f = f.T
         weights = []
         for i in range(0, self.pos.shape[0]):
             w = np.linalg.pinv(psi_mat).dot(f[:,i][np.newaxis].T)
             weights.append(w[:,0])
-        print(np.array(weights))
+        return np.array(weights), self.centers, self.f
 
 if __name__ == "__main__" :
 
     time = np.linspace(0, np.pi, 100)
     velx = np.sin(time)
     accx = np.cos(time)
-    vely = time
-    accy = np.ones(100) * (vely[1] - vely[0]) / 0.01
+    vely = np.sin(time)
+    accy = np.cos(time)
+    print(accy)
     posx = []
     posy = []
     x = 0.0
@@ -113,8 +112,15 @@ if __name__ == "__main__" :
     accx = np.array(accx)
     acc = np.vstack((accx, np.array(accy)))
 
-    dmp_learn = dmp_moton_learning(acc, vel, pos, 2, 4, 0.01, 1, 10, 1)
-    dmp_learn.learn_weights()
-    dmp_learn.calculate_f()
+    dmp_learn = dmp_moton_learning(acc, vel, pos, 1, 2, 0.01, 1, 100, 1)
+    weights, centers, f = dmp_learn.learn_weights()
+    print(f.shape)
+    goal = np.array([[1],
+                     [2]])
+    x0 = np.array([[0],
+                   [0]])
+
+    dmp_gen = dmp_motion_generation.dmp_motion_generation(goal, x0, 1, 2, 0.01, centers, weights, 1, 100, 1, f)
+    dmp_gen.plot_dmp()
 
     print(pos.shape)
