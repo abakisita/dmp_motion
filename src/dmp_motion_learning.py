@@ -5,120 +5,100 @@ import dmp_motion_generation
 
 class dmp_moton_learning:
 
-    def __init__(self, acc, vel, pos, K, D, time_step, canonical_constant, number_of_basis, basis_width):
+    def __init__(self, acc, vel, pos, alpha, time_step, alpha_x, tau):
 
         '''
 
         :param acc: n x m array containing acceleration (n is dimensions and m is number of data points)
         :param vel: n x m array containing velocity (n is dimensions and m is number of data points)
         :param pos: n x m array containing position (n is dimensions and m is number of data points)
-        :param K: K gain (position)
-        :param D: D gain (velocity)
+        :param alpha: alpha
+        :param beta: beta
         :param time_step: sampling time
-        :param canonical_constant:
-        :param number_of_basis: number of basis function
-        :param basis_width: width of basis function
+        :param canonical_constant: canonical constant
         '''
 
-        self.x0 = pos[:,0]
+        self.y0 = pos[:,0]
         self.goal = pos[:,pos.shape[1] - 1]
-        self.K = K
-        self.D = D
+        self.alpha = alpha
+        self.beta = alpha / 4
         self.time_step = time_step
-        self.canonical_constant = canonical_constant
-        self.number_of_basis = number_of_basis
-        self.basis_width = basis_width
+        self.alpha_x = alpha_x
+        self.tau = tau
 
         self.acc = acc
         self.vel = vel
         self.pos = pos
 
+        self.time_instances_passed = 0
 
-    def calculate_f(self):
+    def get_f(self):
+        self.f = []
+        self.s = []
+        goal = self.pos[:, -1]
 
-        goal_matrix = np.ones((1,self.pos.shape[1])) * self.goal[0]
-        for r in range(0, self.pos.shape[0] - 1):
-            goal_matrix = np.vstack((goal_matrix,np.ones((1,self.pos.shape[1])) * self.goal[r + 1]))
-
-        f = self.acc - self.K * (goal_matrix - self.pos) + self.D * self.vel
-        diff = self.goal - self.x0
-        for it in range(0, diff.shape[0]):
-            f[it, :] = f[it, :] / diff[it]
-        self.f = f
-        return f
+        for i in range(0, self.pos.shape[1]):
+            f = self.acc[:,i] * self.tau ** 2 - self.alpha * ( self.beta * (goal - self.pos[:,i]) - self.vel[:,i] * self.tau)
+            s = self.canonical_system_output()
+            self.f.append(f / (s * (goal - self.y0)))
+            self.s.append(s)
+            self.time_instances_passed += 1
+        self.f = np.array(self.f)
+        self.time_instances_passed = 0
+        return self.f, np.array(self.s)
 
     def canonical_system_output(self):
 
-        time = np.array(self.time_step * np.linspace(0, self.pos.shape[1], self.pos.shape[1]))
-        return np.exp(-time * self.canonical_constant)
+        time = self.time_instances_passed * self.time_step
+        x = np.exp(-time * self.alpha_x)
+        return x
 
-    def calculate_centers(self):
-
-        time = np.linspace(0, self.number_of_basis, self.number_of_basis) * \
-               (self.pos.shape[1] * self.time_step * self.canonical_constant / self.number_of_basis)
-        self.centers = np.exp(-time)
-        return self.centers
-
-    def psi(self, h, s, c):
-
-        return np.exp(-h * (s - c) ** 2)
-
-    def learn_weights(self):
-
-        centers = self.calculate_centers()
-        _s = self.canonical_system_output()
-        psi_mat = []
-        for s in _s:
-            p = self.psi(self.basis_width, s, centers)
-            psi_mat.append(p * s / np.sum(p))
-
-        psi_mat = np.array(psi_mat)
-        psi_mat = psi_mat
-        f = self.calculate_f()
-        f = f.T
-        weights = []
-        for i in range(0, self.pos.shape[0]):
-            w = np.linalg.pinv(psi_mat).dot(f[:,i][np.newaxis].T)
-            weights.append(w[:,0])
-        return np.array(weights), self.centers, self.f
 
 if __name__ == "__main__" :
 
     time = np.linspace(0, np.pi, 100)
     velx = np.sin(time)
     accx = np.cos(time)
-    vely = np.sin(time)
-    accy = np.cos(time)
+    vely = np.hstack((np.linspace(0, 50, 50), np.linspace(51, 100, 50))) * 0.02
+
+    accy = [0]
+    for i in range(0, vely.shape[0] - 1):
+        accy.append(vely[i + 1] - vely[i])
+    print(len(accy))
+
     posx = []
     posy = []
     x = 0.0
     y = 0.0
     for i in range(0, velx.shape[0]):
-        x += velx[i] * 0.01
-        y += vely[i] * 0.01
+        x += velx[i] * np.pi / 100
+        y += vely[i] * np.pi / 100
         posx.append(x)
         posy.append(y)
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot(posx,posy,1)
-    #plt.show()
+
 
     posx = np.array(posx)
     pos = np.vstack((posx, np.array(posy)))
     velx = np.array(velx)
-    vel = np.vstack((velx, np.array(vely)))
+    vel = np.vstack((velx, vely))
     accx = np.array(accx)
     acc = np.vstack((accx, np.array(accy)))
+    print(pos.shape)
+    print(vel.shape)
+    print(acc.shape)
+    dmp_learn = dmp_moton_learning(acc, vel, pos, 4.0, np.pi/100, -np.log(0.01), 1.5)
+    f, s = dmp_learn.get_f()
 
-    dmp_learn = dmp_moton_learning(acc, vel, pos, 1, 2, 0.01, 1, 100, 1)
-    weights, centers, f = dmp_learn.learn_weights()
-    goal = np.array([[2],
-                     [4]])
+    #goal = pos[:,pos.shape[1] - 1][np.newaxis].T
+    goal = np.array([[8.0],
+                     [8.0]])
+
     x0 = np.array([[1],
                    [1]])
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot(pos[0,:],pos[1,:],1)
+    dmp_gen = dmp_motion_generation.dmp_motion_generation(goal, x0, 4.0, (f, s), np.pi/100, -np.log(0.01), 1.5, 1.5)
+    dmp_gen.plot()
 
-    dmp_gen = dmp_motion_generation.dmp_motion_generation(goal, x0, 1, 2, 0.01, weights, 1, 100, 1, f, 50)
-    dmp_gen.plot_dmp()
-
-    print(pos.shape)

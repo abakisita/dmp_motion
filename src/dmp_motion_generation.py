@@ -4,78 +4,67 @@ from mpl_toolkits.mplot3d import Axes3D
 
 class dmp_motion_generation :
 
-    def __init__(self, goal, x0, K, D, time_step, weights, canonical_constant, number_of_basis, basis_width, f, runtime):
+    def __init__(self, goal, y0, alpha, learned_parameters, time_step, alpha_x, tau, tau_learning):
 
-        self.goal = goal[np.newaxis].T
-        self.x0 = x0[np.newaxis].T
-        self.K = K
-        self.D = D
-        self.time_step = time_step
-        self.weights = weights
-        self.number_of_basis = number_of_basis
-        self.basis_width = basis_width
-        self.canonical_constant = canonical_constant
-        self.f = f
-        self.__f = []
-        self.runtime = runtime
 
-        self.acc = np.zeros(goal.shape)
-        self.vel = np.zeros(goal.shape)
-        self.pos = x0
+        self.goal = goal
+        self.y0 = y0
+        self.alpha = alpha
+        self.beta = alpha / 4
+        self.learned_f = learned_parameters[0].T
+        print(self.learned_f.shape, "hfsjsk")
+        self.recorded_s = learned_parameters[1]
+        self.time_step = tau * time_step / tau_learning
+        self.alpha_x = alpha_x
+        self.tau = tau
+
+        self.pos = y0
+        self.vel = np.zeros(y0.shape)
+        self.vel = np.zeros(y0.shape)
         self.time_instances_passed = 0
-        self.calculate_centers()
-
-    def calculate_centers(self):
-
-        time = np.linspace(0, self.runtime * self.time_step * self.canonical_constant, self.number_of_basis)
-
-        self.centers = np.exp(-time)
 
     def canonical_system_output(self):
 
         time = self.time_instances_passed * self.time_step
-        return np.exp(-time * self.canonical_constant)
+        x = np.exp(-time * self.alpha_x)
+        self.time_instances_passed += 1
+        return x
 
-    def psi(self, h, s, c):
+    def interpolate_f(self, s):
 
-        return np.exp(-h * (s - c) ** 2)
+        i = 0
+        while not(s <= self.recorded_s[i] and s > self.recorded_s[i + 1]):
+            i += 1
+            if i >= len(self.recorded_s) - 1:
+                return 0.0
+                #return self.learned_f[:, self.learned_f.shape[1] - 1]
+        f = (self.learned_f[:, i + 1] - self.learned_f[:, i]) * (s - self.recorded_s[i])/(self.recorded_s[i + 1] - self.recorded_s[i]) + self.learned_f[:, i]
+        return f[np.newaxis].T
 
-    def calculate_f(self):
+    def integrate_one_step(self, f):
 
-        s = self.canonical_system_output()
-        psi = self.psi(self.basis_width, s, self.centers)
-        psi = psi[np.newaxis].T
-        f = self.weights.dot(psi) * s /np.sum(psi)
-        f = f.T
-        diff = self.goal - self.x0
-        diff = diff[0,:,0]
-        return f.dot(np.diag(diff))
-
-    def integrate_one_step(self):
-        diff = self.goal - self.x0
-        diff = diff[0,:,0]
-        #_f = self.f[:,self.time_instances_passed].T.dot(np.diag(diff))
-        _f = self.calculate_f()
-        self.acc = self.K * (self.goal - self.pos) - self.D * self.vel + _f[np.newaxis].T
-        print(self.acc)
+        self.acc = (self.alpha * ( self.beta * (self.goal - self.pos) - self.vel * self.tau ) + (self.goal - self.y0) * f) / self.tau ** 2
         self.vel = self.vel + self.time_step * self.acc
         self.pos = self.pos + self.time_step * self.vel
-        self.time_instances_passed += 1
+
 
     def integrate(self):
-        pos_seq = self.pos
-        for i in range(0, self.runtime):
-            self.integrate_one_step()
-            pos_seq = np.hstack((pos_seq, self.pos[0]))
-        return pos_seq
 
-    def plot_dmp(self):
+        pos_x = self.y0
 
-        pos = self.integrate()
-        print(pos.shape)
+        for i in range(200):
+            s = self.canonical_system_output()
+            f = self.interpolate_f(s)
+            self.integrate_one_step(f * s)
+            pos_x = np.hstack((pos_x,self.pos))
+
+        return pos_x
+
+    def plot(self):
+        pos_x = self.integrate()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.plot(pos[0,:],pos[1,:],1)
+        ax.plot(pos_x[0,:],pos_x[1,:],1)
         plt.show()
 
 '''
